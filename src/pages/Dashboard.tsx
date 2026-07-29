@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Loan, Client, Payment } from '../types/loan.types';
-import { calculateLoanSummary } from '../lib/loanCalculations';
+import { calculateLoanSummary, matchDateQuery } from '../lib/loanCalculations';
 import MetricCards from '../components/dashboard/MetricCards';
 import ActiveLoansList from '../components/dashboard/ActiveLoansList';
 
@@ -10,12 +10,24 @@ interface DashboardProps {
   getClient: (id: string) => Client | undefined;
   onSelectLoan: (loanId: string) => void;
   onNewLoan: () => void;
+  searchQuery: string;
+  searchType: 'name' | 'date';
 }
 
 export default function Dashboard({
   loans, payments, getClient, onSelectLoan, onNewLoan,
+  searchQuery, searchType,
 }: DashboardProps) {
-  const activeLoans = loans.filter((l) => l.status === 'active');
+  const filtered = loans.filter((l) => {
+    if (!searchQuery) return true;
+    const client = getClient(l.client_id);
+    if (searchType === 'name') {
+      return client?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+    }
+    return matchDateQuery(l.loan_date!, searchQuery);
+  });
+
+  const activeLoans = filtered.filter((l) => l.status === 'active');
   const paidLoans   = loans.filter((l) => l.status === 'paid');
 
   // Calcular totales para las métricas del header

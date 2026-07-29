@@ -47,31 +47,69 @@ export function useLoans() {
   const addLoan = useCallback(async (form: NewLoanForm) => {
     const capital     = parseFloat(form.capital);
     const rate        = parseFloat(form.interest_rate);
+    const monthsNum   = parseInt(form.months) || 2;
+    const clientName  = form.client_name.trim();
+
+    let clientId: string;
+
+    try {
+      const { data: existing } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('name', clientName)
+        .maybeSingle();
+
+      if (existing) {
+        clientId = existing.id;
+      } else {
+        const { data: newClient, error: createError } = await supabase
+          .from('clients')
+          .insert({ name: clientName, cedula: `TEMP-${Date.now()}` })
+          .select()
+          .single();
+
+        if (createError) {
+          console.error('Error creating client:', createError);
+          throw new Error(createError.message);
+        }
+        clientId = newClient.id;
+        setClients((prev) => [...prev, newClient as Client]);
+      }
+    } catch (e) {
+      console.error('Error in client lookup/creation:', e);
+      throw e;
+    }
+
     const newLoan = {
-      client_id:       form.client_id,
+      client_id:       clientId,
       capital,
       delivery_amount: capital * 0.96,
       interest_rate:   rate,
-      months:          2,
-      total_interest:  capital * (rate / 100) * 2,
+      months:          monthsNum,
+      total_interest:  capital * (rate / 100) * monthsNum,
       loan_date:       form.loan_date,
       day_of_week:     getDayOfWeek(form.loan_date),
       status:          'active' as const,
     };
 
-    const { data, error } = await supabase
-      .from('loans')
-      .insert(newLoan)
-      .select()
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('loans')
+        .insert(newLoan)
+        .select()
+        .single();
 
-    if (error) {
-      console.error('Error adding loan:', error);
-      return;
+      if (error) {
+        console.error('Error adding loan:', error);
+        throw new Error(error.message);
+      }
+
+      setLoans((prev) => [data, ...prev]);
+      return data;
+    } catch (e) {
+      console.error('Error adding loan:', e);
+      throw e;
     }
-
-    setLoans((prev) => [data, ...prev]);
-    return data;
   }, []);
 
   const updateLoanStatus = useCallback(

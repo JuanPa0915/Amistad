@@ -107,3 +107,21 @@ export function formatDate(isoDate: string): string {
     year: 'numeric',
   });
 }
+
+/**
+ * Compara una fecha ISO (YYYY-MM-DDTHH:mm:ss) contra una consulta
+ * escrita en formato DD/MM o DD/MM/AAAA, soportando búsqueda parcial:
+ *   - "15"        → coincide cualquier día 15
+ *   - "15/03"     → coincide 15 de marzo de cualquier año
+ *   - "15/03/2024"→ coincide exactamente
+ */
+export function matchDateQuery(isoDate: string, query: string): boolean {
+  const datePart = isoDate?.slice(0, 10);
+  if (!datePart) return false;
+  const [year, month, day] = datePart.split('-');
+  const parts = query.split('/');
+  if (parts.length === 1 && parts[0]) return day === parts[0];
+  if (parts.length === 2) return day === parts[0] && month === parts[1];
+  if (parts.length === 3) return day === parts[0] && month === parts[1] && year === parts[2];
+  return false;
+}

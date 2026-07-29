@@ -44,9 +44,10 @@ export interface LoanSummary {
 }
 
 export interface NewLoanForm {
-  client_id: string;
+  client_name: string;
   capital: string;
   interest_rate: string;
+  months: string;
   loan_date: string;
 }
 

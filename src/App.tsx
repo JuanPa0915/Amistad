@@ -9,7 +9,8 @@ import NewLoanModal    from './components/modals/NewLoanModal';
 import AddPaymentModal from './components/modals/AddPaymentModal';
 import { calculateLoanSummary } from './lib/loanCalculations';
 
-type View = 'dashboard' | 'loans' | 'clients';
+type View = 'dashboard' | 'loans';
+type SearchType = 'name' | 'date';
 
 export default function App() {
   const { clients, loans, getClient, addLoan, updateLoanStatus } = useLoans();
@@ -18,6 +19,10 @@ export default function App() {
   // Navegación
   const [view, setView]               = useState<View>('dashboard');
   const [selectedLoanId, setSelected] = useState<string | null>(null);
+
+  // Búsqueda
+  const [searchQuery, setSearchQuery]     = useState('');
+  const [searchType, setSearchType]       = useState<SearchType>('name');
 
   // Modales
   const [showNewLoan, setShowNewLoan]     = useState(false);
@@ -50,6 +55,13 @@ export default function App() {
         currentView={view}
         onViewChange={handleViewChange}
         onNewLoan={() => setShowNewLoan(true)}
+        searchQuery={searchQuery}
+        searchType={searchType}
+        onSearchChange={setSearchQuery}
+        onSearchTypeChange={setSearchType}
+        loans={loans}
+        getClient={getClient}
+        onSelectLoan={handleSelectLoan}
       />
 
       <Layout>
@@ -60,6 +72,8 @@ export default function App() {
             getClient={getClient}
             onSelectLoan={handleSelectLoan}
             onNewLoan={() => setShowNewLoan(true)}
+            searchQuery={searchQuery}
+            searchType={searchType}
           />
         )}
 
@@ -71,29 +85,18 @@ export default function App() {
             selectedLoanId={selectedLoanId}
             onSelectLoan={handleSelectLoan}
             onBack={handleBack}
-            onNewLoan={() => setShowNewLoan(true)}
             onAddPayment={() => setShowPayment(true)}
             onDeletePayment={deletePayment}
             onMarkPaid={(id) => updateLoanStatus(id, 'paid')}
+            searchQuery={searchQuery}
+            searchType={searchType}
           />
-        )}
-
-        {view === 'clients' && (
-          <div className="bg-white rounded-xl border border-gray-100 p-8 text-center">
-            <p className="text-gray-400 text-sm">
-              Módulo de clientes — próximamente. 
-            </p>
-            <p className="text-gray-400 text-xs mt-1">
-              Aquí podrás registrar, editar y buscar clientes.
-            </p>
-          </div>
         )}
       </Layout>
 
       {/* Modales */}
       {showNewLoan && (
         <NewLoanModal
-          clients={clients}
           onSave={addLoan}
           onClose={() => setShowNewLoan(false)}
         />

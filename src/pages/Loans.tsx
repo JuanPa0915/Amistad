@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Loan, Client, Payment } from '../types/loan.types';
-import { calculateLoanSummary } from '../lib/loanCalculations';
+import { calculateLoanSummary, matchDateQuery } from '../lib/loanCalculations';
 import LoanCard from '../components/loans/LoanCard';
 import LoanDetail from '../components/loans/LoanDetail';
 
@@ -11,10 +11,11 @@ interface LoansProps {
   selectedLoanId: string | null;
   onSelectLoan: (id: string) => void;
   onBack: () => void;
-  onNewLoan: () => void;
   onAddPayment: () => void;
   onDeletePayment: (paymentId: string) => void;
   onMarkPaid: (loanId: string) => void;
+  searchQuery: string;
+  searchType: 'name' | 'date';
 }
 
 const STATUS_FILTER_LABELS = ['Todos', 'Activos', 'Pagados', 'En mora'] as const;
@@ -23,10 +24,14 @@ type FilterLabel = typeof STATUS_FILTER_LABELS[number];
 export default function Loans({
   loans, payments, getClient,
   selectedLoanId, onSelectLoan, onBack,
-  onNewLoan, onAddPayment, onDeletePayment, onMarkPaid,
+  onAddPayment, onDeletePayment, onMarkPaid,
+  searchQuery, searchType,
 }: LoansProps) {
 
   const [filter, setFilter] = React.useState<FilterLabel>('Todos');
+  const [dayFilter, setDayFilter] = React.useState<string | null>(null);
+
+  const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
   // Si hay un préstamo seleccionado, mostrar detalle
   if (selectedLoanId) {
@@ -52,36 +57,30 @@ export default function Loans({
     );
   }
 
-  // Filtrar préstamos según el selector
+  // Filtrar préstamos según el selector, día y búsqueda
   const filtered = loans.filter((l) => {
-    if (filter === 'Activos') return l.status === 'active';
-    if (filter === 'Pagados') return l.status === 'paid';
-    if (filter === 'En mora') return l.status === 'defaulted';
-    return true;
+    if (filter === 'Activos') { if (l.status !== 'active') return false; }
+    if (filter === 'Pagados') { if (l.status !== 'paid') return false; }
+    if (filter === 'En mora') { if (l.status !== 'defaulted') return false; }
+    if (dayFilter && l.day_of_week !== dayFilter) return false;
+    if (!searchQuery) return true;
+    const client = getClient(l.client_id);
+    if (searchType === 'name') {
+      return client?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+    }
+    return matchDateQuery(l.loan_date!, searchQuery);
   });
 
   return (
     <div>
       {/* Header de la sección */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-lg font-semibold text-gray-900">Préstamos</h1>
-          <p className="text-sm text-gray-400">{loans.length} en total</p>
-        </div>
-        <button
-          onClick={onNewLoan}
-          className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white
-                     text-sm font-medium px-3 py-2 rounded-lg transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Nuevo
-        </button>
+      <div className="mb-4">
+        <h1 className="text-lg font-semibold text-gray-900">Préstamos</h1>
+        <p className="text-sm text-gray-400">{loans.length} en total</p>
       </div>
 
       {/* Filtros de estado */}
-      <div className="flex gap-1 mb-4 bg-gray-100 p-1 rounded-lg w-fit">
+      <div className="flex gap-1 mb-3 bg-gray-100 p-1 rounded-lg w-fit">
         {STATUS_FILTER_LABELS.map((label) => (
           <button
             key={label}
@@ -92,6 +91,33 @@ export default function Loans({
                 : 'text-gray-500 hover:text-gray-700'}`}
           >
             {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Filtro por día de la semana */}
+      <div className="flex items-center gap-1 mb-4">
+        <button
+          onClick={() => setDayFilter(null)}
+          className={`w-6 h-6 text-[11px] font-medium rounded-md transition-colors
+            ${!dayFilter
+              ? 'bg-blue-100 text-blue-700'
+              : 'text-gray-400 hover:text-gray-600'}`}
+          title="Todos los días"
+        >
+          T
+        </button>
+        {DAYS.map((d) => (
+          <button
+            key={d}
+            onClick={() => setDayFilter(d === dayFilter ? null : d)}
+            className={`w-6 h-6 text-[11px] font-medium rounded-md transition-colors
+              ${dayFilter === d
+                ? 'bg-blue-100 text-blue-700'
+                : 'text-gray-400 hover:text-gray-600'}`}
+            title={d}
+          >
+            {d.charAt(0)}
           </button>
         ))}
       </div>

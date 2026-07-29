@@ -1,28 +1,30 @@
 import React, { useState } from 'react';
-import type { Client, NewLoanForm } from '../../types/loan.types';
+import type { NewLoanForm } from '../../types/loan.types';
 import { formatCOP, getDayOfWeek } from '../../lib/loanCalculations';
 
 interface NewLoanModalProps {
-  clients: Client[];
   onSave: (form: NewLoanForm) => void | Promise<void>;
   onClose: () => void;
 }
 
 const EMPTY_FORM: NewLoanForm = {
-  client_id:    '',
+  client_name:  '',
   capital:      '',
   interest_rate:'',
+  months:       '2',
   loan_date:    new Date().toISOString().slice(0, 16),
 };
 
-export default function NewLoanModal({ clients, onSave, onClose }: NewLoanModalProps) {
+export default function NewLoanModal({ onSave, onClose }: NewLoanModalProps) {
   const [form, setForm]     = useState<NewLoanForm>(EMPTY_FORM);
   const [errors, setErrors] = useState<Partial<NewLoanForm>>({});
+  const [saving, setSaving] = useState(false);
 
   const capital  = parseFloat(form.capital)       || 0;
   const rate     = parseFloat(form.interest_rate) || 0;
+  const months   = parseInt(form.months)           || 2;
   const delivery = capital * 0.96;
-  const interest = capital * (rate / 100) * 2;
+  const interest = capital * (rate / 100) * months;
   const total    = capital + interest;
   const dayOfWeek = form.loan_date ? getDayOfWeek(form.loan_date) : '';
 
@@ -33,9 +35,10 @@ export default function NewLoanModal({ clients, onSave, onClose }: NewLoanModalP
 
   function validate(): boolean {
     const errs: Partial<NewLoanForm> = {};
-    if (!form.client_id)    errs.client_id    = 'Selecciona un cliente';
+    if (!form.client_name?.trim())    errs.client_name    = 'Ingresa el nombre del cliente';
     if (!form.capital || capital <= 0) errs.capital = 'Ingresa un monto válido';
     if (!form.interest_rate || rate <= 0) errs.interest_rate = 'Ingresa la tasa';
+    if (!form.months || months < 1) errs.months = 'Ingresa los meses';
     if (!form.loan_date)    errs.loan_date    = 'Selecciona una fecha';
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -43,8 +46,16 @@ export default function NewLoanModal({ clients, onSave, onClose }: NewLoanModalP
 
   async function handleSave() {
     if (!validate()) return;
-    await onSave(form);
-    onClose();
+    setSaving(true);
+    try {
+      await onSave(form);
+      onClose();
+    } catch (e) {
+      console.error('Error al crear préstamo:', e);
+      setErrors((prev) => ({ ...prev, client_name: 'Error al guardar. Revisa la consola.' }));
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -73,32 +84,29 @@ export default function NewLoanModal({ clients, onSave, onClose }: NewLoanModalP
             <label className="block text-xs font-medium text-gray-600 mb-1">
               Cliente <span className="text-red-500">*</span>
             </label>
-            <select
-              value={form.client_id}
-              onChange={(e) => set('client_id', e.target.value)}
+            <input
+              type="text"
+              placeholder="Nombre del cliente"
+              value={form.client_name}
+              onChange={(e) => set('client_name', e.target.value)}
               className={`w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none
-                ${errors.client_id ? 'border-red-400' : 'border-gray-200'}`}
-            >
-              <option value="">Seleccionar cliente…</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>{c.name} — {c.cedula}</option>
-              ))}
-            </select>
-            {errors.client_id && <p className="text-xs text-red-500 mt-1">{errors.client_id}</p>}
+                ${errors.client_name ? 'border-red-400' : 'border-gray-200'}`}
+            />
+            {errors.client_name && <p className="text-xs text-red-500 mt-1">{errors.client_name}</p>}
           </div>
 
-          {/* Capital y Tasa */}
+          {/* Préstamo y Tasa */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">
-                Capital ($) <span className="text-red-500">*</span>
+                Préstamo ($) <span className="text-red-500">*</span>
               </label>
               <input
-                type="number"
-                min="0"
-                placeholder="1000000"
-                value={form.capital}
-                onChange={(e) => set('capital', e.target.value)}
+                type="text"
+                inputMode="numeric"
+                placeholder="1.000.000"
+                value={form.capital.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+                onChange={(e) => set('capital', e.target.value.replace(/\D/g, ''))}
                 className={`w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none
                   ${errors.capital ? 'border-red-400' : 'border-gray-200'}`}
               />
@@ -141,10 +149,21 @@ export default function NewLoanModal({ clients, onSave, onClose }: NewLoanModalP
             )}
           </div>
 
-          {/* Tiempo (fijo) */}
-          <div className="bg-gray-50 rounded-lg px-3 py-2.5 flex justify-between items-center">
-            <span className="text-xs text-gray-500">Tiempo del préstamo</span>
-            <span className="text-xs font-semibold text-gray-700">2 meses (fijo)</span>
+          {/* Tiempo */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              Tiempo del préstamo (meses) <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              min="1"
+              placeholder="2"
+              value={form.months}
+              onChange={(e) => set('months', e.target.value)}
+              className={`w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none
+                ${errors.months ? 'border-red-400' : 'border-gray-200'}`}
+            />
+            {errors.months && <p className="text-xs text-red-500 mt-1">{errors.months}</p>}
           </div>
 
           {/* Vista previa calculada */}
@@ -155,12 +174,12 @@ export default function NewLoanModal({ clients, onSave, onClose }: NewLoanModalP
               </p>
               <div className="grid grid-cols-2 gap-2 text-sm">
                 {[
-                  { label: 'Capital solicitado',   value: formatCOP(capital),   color: 'text-gray-900' },
+                  { label: 'Préstamo solicitado',   value: formatCOP(capital),   color: 'text-gray-900' },
                   { label: 'Monto a entregar (−4%)',value: formatCOP(delivery),  color: 'text-gray-900' },
                   { label: 'Comisión cobrada',      value: formatCOP(capital * 0.04), color: 'text-green-700' },
-                  { label: 'Intereses (2 meses)',   value: formatCOP(interest),  color: 'text-amber-700' },
+                  { label: `Intereses (${months} meses)`,   value: formatCOP(interest),  color: 'text-amber-700' },
                   { label: 'Total a recibir',       value: formatCOP(total),     color: 'text-blue-800' },
-                  { label: '% interés total',       value: `${(rate * 2).toFixed(0)}%`, color: 'text-blue-800' },
+                  { label: '% interés total',       value: `${(rate * months).toFixed(0)}%`, color: 'text-blue-800' },
                 ].map((item) => (
                   <div key={item.label} className="bg-white rounded-lg p-2">
                     <p className="text-xs text-gray-400">{item.label}</p>
@@ -183,10 +202,14 @@ export default function NewLoanModal({ clients, onSave, onClose }: NewLoanModalP
           </button>
           <button
             onClick={handleSave}
-            className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700
-                       text-white rounded-lg transition-colors"
+            disabled={saving}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors
+              ${saving
+                ? 'bg-blue-400 text-white cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
           >
-            Crear préstamo
+            {saving ? 'Guardando…' : 'Crear préstamo'}
           </button>
         </div>
       </div>
