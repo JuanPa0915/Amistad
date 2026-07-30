@@ -19,6 +19,44 @@ export interface WhatsAppReceiptData {
  * Limpia el número de teléfono de espacios, guiones y paréntesis.
  * Si no comienza con el indicativo 57 (Colombia), lo agrega automáticamente.
  */
+export interface DebtReportData {
+  clientName: string;
+  clientPhone: string;
+  loan: Loan;
+  currentBalances: {
+    interestPending: number;
+    capitalPending: number;
+  };
+}
+
+export function buildDebtReportUrl(data: DebtReportData): string {
+  const { clientName, clientPhone, loan, currentBalances } = data;
+  const phone = sanitizePhone(clientPhone);
+  const totalInterest = loan.capital * (loan.interest_rate / 100) * loan.months;
+  const totalDebt = currentBalances.interestPending + currentBalances.capitalPending;
+
+  const message = [
+    `📋 *REPORTE DE ESTADO DE CUENTA - LA AMISTAD* 📋`,
+    ``,
+    `👤 *Cliente:* ${clientName}`,
+    ``,
+    ` *Información del Préstamo:*`,
+    `• Capital Inicial: ${formatCOP(loan.capital)}`,
+    `• Intereses Totales Esperados: ${formatCOP(totalInterest)}`,
+    ``,
+    `---`,
+    ` *RESUMEN DE SALDOS ACTUALES* `,
+    ` Saldo Intereses Pendiente: ${formatCOP(currentBalances.interestPending)}`,
+    ` Saldo Capital Pendiente: ${formatCOP(currentBalances.capitalPending)}`,
+    ``,
+    ` *TOTAL DEUDA PENDIENTE:* ${formatCOP(totalDebt)}`,
+    ``,
+    `*Nota:* Este es un reporte general de su deuda a la fecha actual.`,
+  ].join('\n');
+
+  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+}
+
 export function sanitizePhone(raw: string): string {
   // Eliminar todo lo que no sea dígito o el signo +
   let cleaned = raw.replace(/[^\d+]/g, '');

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useLoans }    from './hooks/useLoans';
 import { usePayments } from './hooks/usePayments';
 import Header          from './components/layout/Header';
@@ -7,14 +7,14 @@ import Dashboard       from './pages/Dashboard';
 import Loans           from './pages/Loans';
 import NewLoanModal    from './components/modals/NewLoanModal';
 import AddPaymentModal from './components/modals/AddPaymentModal';
-import { calculateLoanSummary } from './lib/loanCalculations';
+import { calculateLoanSummary, simulatePayment } from './lib/loanCalculations';
 
 type View = 'dashboard' | 'loans';
 type SearchType = 'name' | 'date';
 
 export default function App() {
-  const { clients, loans, getClient, addLoan, updateLoanStatus } = useLoans();
-  const { payments, getPaymentsForLoan, addPayment, deletePayment } = usePayments();
+  const { loans, getClient, addLoan, updateLoanStatus } = useLoans();
+  const { payments, addPayment, deletePayment } = usePayments();
 
   // Navegación
   const [view, setView]               = useState<View>('dashboard');
@@ -106,7 +106,14 @@ export default function App() {
         <AddPaymentModal
           clientName={activeClient?.name ?? '—'}
           summary={activeSummary}
-          onSave={(form) => addPayment(activeLoan.id, form)}
+          onSave={async (form) => {
+            const sim = simulatePayment(activeSummary, parseFloat(form.amount));
+            const result = await addPayment(activeLoan.id, form);
+            if (!result) return;
+            if (sim.newDebt === 0) {
+              await updateLoanStatus(activeLoan.id, 'paid');
+            }
+          }}
           onClose={() => setShowPayment(false)}
         />
       )}

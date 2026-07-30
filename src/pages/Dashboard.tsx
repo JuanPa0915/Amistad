@@ -1,4 +1,3 @@
-import React from 'react';
 import type { Loan, Client, Payment } from '../types/loan.types';
 import { calculateLoanSummary, matchDateQuery } from '../lib/loanCalculations';
 import MetricCards from '../components/dashboard/MetricCards';

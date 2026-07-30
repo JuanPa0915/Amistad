@@ -55,16 +55,28 @@ export function useLoans() {
     try {
       const { data: existing } = await supabase
         .from('clients')
-        .select('id')
+        .select('id, phone')
         .eq('name', clientName)
         .maybeSingle();
 
       if (existing) {
         clientId = existing.id;
+        const phone = form.client_phone?.trim();
+        if (phone && !existing.phone) {
+          const { error: updateError } = await supabase
+            .from('clients')
+            .update({ phone })
+            .eq('id', existing.id);
+          if (!updateError) {
+            setClients((prev) =>
+              prev.map((c) => (c.id === existing.id ? { ...c, phone } : c)),
+            );
+          }
+        }
       } else {
         const { data: newClient, error: createError } = await supabase
           .from('clients')
-          .insert({ name: clientName, cedula: `TEMP-${Date.now()}` })
+          .insert({ name: clientName, cedula: `TEMP-${Date.now()}`, phone: form.client_phone || null })
           .select()
           .single();
 

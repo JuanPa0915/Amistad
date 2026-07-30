@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type { NewLoanForm } from '../../types/loan.types';
 import { formatCOP, getDayOfWeek } from '../../lib/loanCalculations';
 
@@ -8,11 +8,12 @@ interface NewLoanModalProps {
 }
 
 const EMPTY_FORM: NewLoanForm = {
-  client_name:  '',
-  capital:      '',
-  interest_rate:'',
-  months:       '2',
-  loan_date:    new Date().toISOString().slice(0, 16),
+  client_name:   '',
+  client_phone:  '',
+  capital:       '',
+  interest_rate: '',
+  months:        '2',
+  loan_date:     new Date().toISOString().slice(0, 16),
 };
 
 export default function NewLoanModal({ onSave, onClose }: NewLoanModalProps) {
@@ -34,13 +35,14 @@ export default function NewLoanModal({ onSave, onClose }: NewLoanModalProps) {
   }
 
   function validate(): boolean {
-    const errs: Partial<NewLoanForm> = {};
+    const errs: Partial<Record<keyof NewLoanForm, string>> = {};
     if (!form.client_name?.trim())    errs.client_name    = 'Ingresa el nombre del cliente';
+    if (!form.client_phone?.trim())   errs.client_phone   = 'Ingresa el número de teléfono';
     if (!form.capital || capital <= 0) errs.capital = 'Ingresa un monto válido';
     if (!form.interest_rate || rate <= 0) errs.interest_rate = 'Ingresa la tasa';
     if (!form.months || months < 1) errs.months = 'Ingresa los meses';
     if (!form.loan_date)    errs.loan_date    = 'Selecciona una fecha';
-    setErrors(errs);
+    setErrors(errs as Partial<NewLoanForm>);
     return Object.keys(errs).length === 0;
   }
 
@@ -93,6 +95,22 @@ export default function NewLoanModal({ onSave, onClose }: NewLoanModalProps) {
                 ${errors.client_name ? 'border-red-400' : 'border-gray-200'}`}
             />
             {errors.client_name && <p className="text-xs text-red-500 mt-1">{errors.client_name}</p>}
+          </div>
+
+          {/* Teléfono */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              Teléfono del cliente <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="tel"
+              placeholder="300 123 4567"
+              value={form.client_phone}
+              onChange={(e) => set('client_phone', e.target.value)}
+              className={`w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none
+                ${errors.client_phone ? 'border-red-400' : 'border-gray-200'}`}
+            />
+            {errors.client_phone && <p className="text-xs text-red-500 mt-1">{errors.client_phone}</p>}
           </div>
 
           {/* Préstamo y Tasa */}

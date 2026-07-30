@@ -1,6 +1,5 @@
-import React from 'react';
 import type { Loan, Client, Payment } from '../../types/loan.types';
-import { calculateLoanSummary, formatCOP, formatDate } from '../../lib/loanCalculations';
+import { calculateLoanSummary } from '../../lib/loanCalculations';
 import LoanCard from '../loans/LoanCard';
 
 interface ActiveLoansListProps {

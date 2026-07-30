@@ -1,4 +1,3 @@
-import React from 'react';
 import type { Loan, Client, Payment, LoanSummary } from '../../types/loan.types';
 import { formatCOP, formatDate } from '../../lib/loanCalculations';
 import PaymentTimeline from './PaymentTimeline';

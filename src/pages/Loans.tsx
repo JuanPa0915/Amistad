@@ -18,7 +18,7 @@ interface LoansProps {
   searchType: 'name' | 'date';
 }
 
-const STATUS_FILTER_LABELS = ['Todos', 'Activos', 'Pagados', 'En mora'] as const;
+const STATUS_FILTER_LABELS = ['Activos', 'Pagados'] as const;
 type FilterLabel = typeof STATUS_FILTER_LABELS[number];
 
 export default function Loans({
@@ -28,7 +28,7 @@ export default function Loans({
   searchQuery, searchType,
 }: LoansProps) {
 
-  const [filter, setFilter] = React.useState<FilterLabel>('Todos');
+  const [filter, setFilter] = React.useState<FilterLabel>('Activos');
   const [dayFilter, setDayFilter] = React.useState<string | null>(null);
 
   const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
@@ -61,7 +61,7 @@ export default function Loans({
   const filtered = loans.filter((l) => {
     if (filter === 'Activos') { if (l.status !== 'active') return false; }
     if (filter === 'Pagados') { if (l.status !== 'paid') return false; }
-    if (filter === 'En mora') { if (l.status !== 'defaulted') return false; }
+
     if (dayFilter && l.day_of_week !== dayFilter) return false;
     if (!searchQuery) return true;
     const client = getClient(l.client_id);

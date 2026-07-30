@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type { NewPaymentForm, LoanSummary } from '../../types/loan.types';
 import { formatCOP, simulatePayment } from '../../lib/loanCalculations';
 
