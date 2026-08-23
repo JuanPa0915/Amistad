@@ -1,5 +1,4 @@
 name = "amistad"
-pages_build_output_dir = "dist"
-
-[pages]
-compatibility_date = "2026-07-30"
+account_id = "770129bb17580b089d7bcd8f26682292"
+compatibility_date = "2026-08-05"
+pages_build_output_dir = "./dist"
