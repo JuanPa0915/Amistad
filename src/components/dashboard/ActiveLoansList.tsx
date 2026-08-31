@@ -7,11 +7,12 @@ interface ActiveLoansListProps {
   payments: Payment[];
   getClient: (id: string) => Client | undefined;
   onSelectLoan: (loanId: string) => void;
+  onEditClient: (loanId: string) => void;
   onNewLoan: () => void;
 }
 
 export default function ActiveLoansList({
-  loans, payments, getClient, onSelectLoan, onNewLoan,
+  loans, payments, getClient, onSelectLoan, onEditClient, onNewLoan,
 }: ActiveLoansListProps) {
   const activeLoans = loans.filter((l) => l.status === 'active');
 
@@ -54,6 +55,7 @@ export default function ActiveLoansList({
                 client={client}
                 summary={summary}
                 onClick={() => onSelectLoan(loan.id)}
+                onEditClient={() => onEditClient(loan.id)}
               />
             );
           })}

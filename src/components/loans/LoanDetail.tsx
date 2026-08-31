@@ -11,11 +11,12 @@ interface LoanDetailProps {
   onAddPayment: () => void;
   onDeletePayment: (paymentId: string) => void;
   onMarkPaid: () => void;
+  onEditClient: () => void;
 }
 
 export default function LoanDetail({
   loan, client, summary, payments,
-  onBack, onAddPayment, onDeletePayment, onMarkPaid,
+  onBack, onAddPayment, onDeletePayment, onMarkPaid, onEditClient,
 }: LoanDetailProps) {
   return (
     <div className="flex flex-col gap-4">
@@ -43,6 +44,11 @@ export default function LoanDetail({
             <p className="text-sm text-gray-400">
               C.C. {client?.cedula} · {client?.phone ?? '—'}
             </p>
+            {client && (
+              <button onClick={onEditClient} className="text-xs text-blue-600 hover:text-blue-800 mt-1">
+                Editar información del cliente
+              </button>
+            )}
             <p className="text-sm text-gray-400 mt-0.5">
               {loan.day_of_week}, {formatDate(loan.loan_date)} · Tasa {loan.interest_rate}%/mes · 2 meses
             </p>

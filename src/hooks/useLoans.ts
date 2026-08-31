@@ -143,6 +143,55 @@ export function useLoans() {
     [],
   );
 
+  const updateClient = useCallback(
+    async (clientId: string, loanId: string, changes: {
+      name: string;
+      phone: string;
+      capital: number;
+      interest_rate: number;
+      months: number;
+      loan_date: string;
+    }) => {
+      const { name, phone, capital, interest_rate, months, loan_date } = changes;
+      const { data: clientData, error: clientError } = await supabase
+        .from('clients')
+        .update({ name, phone })
+        .eq('id', clientId)
+        .select()
+        .single();
+
+      if (clientError) {
+        console.error('Error updating client:', clientError);
+        return false;
+      }
+
+      const { data: loanData, error: loanError } = await supabase
+        .from('loans')
+        .update({
+          capital,
+          delivery_amount: capital * 0.96,
+          interest_rate,
+          months,
+          total_interest: capital * (interest_rate / 100) * months,
+          loan_date,
+          day_of_week: getDayOfWeek(loan_date),
+        })
+        .eq('id', loanId)
+        .select()
+        .single();
+
+      if (loanError) {
+        console.error('Error updating loan:', loanError);
+        return false;
+      }
+
+      setClients((prev) => prev.map((client) => client.id === clientId ? clientData : client));
+      setLoans((prev) => prev.map((loan) => loan.id === loanId ? loanData : loan));
+      return true;
+    },
+    [],
+  );
+
   const addClient = useCallback(async (client: Omit<Client, 'id' | 'created_at'>) => {
     const { data, error } = await supabase
       .from('clients')
@@ -159,5 +208,5 @@ export function useLoans() {
     return data;
   }, []);
 
-  return { clients, loans, loading, getClient, addLoan, updateLoanStatus, addClient };
+  return { clients, loans, loading, getClient, addLoan, updateLoanStatus, updateClient, addClient };
 }

@@ -8,6 +8,7 @@ interface LoanCardProps {
   client?: Client;
   summary: LoanSummary;
   onClick: () => void;
+  onEditClient: () => void;
 }
 
 const STATUS_STYLES = {
@@ -21,7 +22,7 @@ const STATUS_LABEL = {
   defaulted:'En mora',
 };
 
-export default function LoanCard({ loan, client, summary, onClick }: LoanCardProps) {
+export default function LoanCard({ loan, client, summary, onClick, onEditClient }: LoanCardProps) {
   function handleWhatsApp(e: React.MouseEvent) {
     e.stopPropagation();
     if (!client?.phone) return;
@@ -52,6 +53,14 @@ export default function LoanCard({ loan, client, summary, onClick }: LoanCardPro
           <p className="text-xs text-gray-400 mt-0.5">
             {client?.cedula} · {client?.phone ?? '—'}
           </p>
+          {client && (
+            <button
+              onClick={(event) => { event.stopPropagation(); onEditClient(); }}
+              className="mt-1 text-xs text-blue-600 hover:text-blue-800"
+            >
+              Editar cliente
+            </button>
+          )}
           <p className="text-xs text-gray-400">
             {loan.day_of_week} {formatDate(loan.loan_date)} · {loan.interest_rate}% mensual
           </p>

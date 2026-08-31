@@ -8,13 +8,14 @@ interface DashboardProps {
   payments: Payment[];
   getClient: (id: string) => Client | undefined;
   onSelectLoan: (loanId: string) => void;
+  onEditClient: (loanId: string) => void;
   onNewLoan: () => void;
   searchQuery: string;
   searchType: 'name' | 'date';
 }
 
 export default function Dashboard({
-  loans, payments, getClient, onSelectLoan, onNewLoan,
+  loans, payments, getClient, onSelectLoan, onEditClient, onNewLoan,
   searchQuery, searchType,
 }: DashboardProps) {
   const filtered = loans.filter((l) => {
@@ -67,6 +68,7 @@ export default function Dashboard({
         payments={payments}
         getClient={getClient}
         onSelectLoan={onSelectLoan}
+        onEditClient={onEditClient}
         onNewLoan={onNewLoan}
       />
     </div>

@@ -14,6 +14,7 @@ interface LoansProps {
   onAddPayment: () => void;
   onDeletePayment: (paymentId: string) => void;
   onMarkPaid: (loanId: string) => void;
+  onEditClient: (loanId: string) => void;
   searchQuery: string;
   searchType: 'name' | 'date';
 }
@@ -24,7 +25,7 @@ type FilterLabel = typeof STATUS_FILTER_LABELS[number];
 export default function Loans({
   loans, payments, getClient,
   selectedLoanId, onSelectLoan, onBack,
-  onAddPayment, onDeletePayment, onMarkPaid,
+  onAddPayment, onDeletePayment, onMarkPaid, onEditClient,
   searchQuery, searchType,
 }: LoansProps) {
 
@@ -53,6 +54,7 @@ export default function Loans({
         onAddPayment={onAddPayment}
         onDeletePayment={onDeletePayment}
         onMarkPaid={() => onMarkPaid(loan.id)}
+        onEditClient={() => onEditClient(loan.id)}
       />
     );
   }
@@ -141,6 +143,7 @@ export default function Loans({
                 client={client}
                 summary={summary}
                 onClick={() => onSelectLoan(loan.id)}
+                onEditClient={() => onEditClient(loan.id)}
               />
             );
           })}

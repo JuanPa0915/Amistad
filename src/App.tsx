@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLoans }    from './hooks/useLoans';
 import { usePayments } from './hooks/usePayments';
 import Header          from './components/layout/Header';
@@ -7,13 +7,52 @@ import Dashboard       from './pages/Dashboard';
 import Loans           from './pages/Loans';
 import NewLoanModal    from './components/modals/NewLoanModal';
 import AddPaymentModal from './components/modals/AddPaymentModal';
+import EditClientModal from './components/modals/EditClientModal';
+import Login from './components/auth/Login';
+import { supabase } from './lib/supabase';
+import type { Client, Loan } from './types/loan.types';
 import { calculateLoanSummary, simulatePayment } from './lib/loanCalculations';
 
 type View = 'dashboard' | 'loans';
 type SearchType = 'name' | 'date';
 
 export default function App() {
-  const { loans, getClient, addLoan, updateLoanStatus } = useLoans();
+  const [sessionReady, setSessionReady] = useState(false);
+  const [authenticated, setAuthenticated] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!active) return;
+      setAuthenticated(Boolean(session));
+      setSessionReady(true);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthenticated(Boolean(session));
+      setSessionReady(true);
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  if (!sessionReady) {
+    return <div className="min-h-screen bg-gray-50" />;
+  }
+
+  if (!authenticated) {
+    return <Login />;
+  }
+
+  return <AuthenticatedApp />;
+}
+
+function AuthenticatedApp() {
+  const { loans, getClient, addLoan, updateLoanStatus, updateClient } = useLoans();
   const { payments, addPayment, deletePayment } = usePayments();
 
   // Navegación
@@ -27,6 +66,7 @@ export default function App() {
   // Modales
   const [showNewLoan, setShowNewLoan]     = useState(false);
   const [showPayment, setShowPayment]     = useState(false);
+  const [editingLoan, setEditingLoan] = useState<{ loan: Loan; client: Client } | null>(null);
 
   function handleSelectLoan(id: string) {
     setSelected(id);
@@ -71,6 +111,11 @@ export default function App() {
             payments={payments}
             getClient={getClient}
             onSelectLoan={handleSelectLoan}
+            onEditClient={(loanId) => {
+              const loan = loans.find((item) => item.id === loanId);
+              const client = loan ? getClient(loan.client_id) : undefined;
+              if (loan && client) setEditingLoan({ loan, client });
+            }}
             onNewLoan={() => setShowNewLoan(true)}
             searchQuery={searchQuery}
             searchType={searchType}
@@ -88,6 +133,11 @@ export default function App() {
             onAddPayment={() => setShowPayment(true)}
             onDeletePayment={deletePayment}
             onMarkPaid={(id) => updateLoanStatus(id, 'paid')}
+            onEditClient={(loanId) => {
+              const loan = loans.find((item) => item.id === loanId);
+              const client = loan ? getClient(loan.client_id) : undefined;
+              if (loan && client) setEditingLoan({ loan, client });
+            }}
             searchQuery={searchQuery}
             searchType={searchType}
           />
@@ -115,6 +165,15 @@ export default function App() {
             }
           }}
           onClose={() => setShowPayment(false)}
+        />
+      )}
+
+      {editingLoan && (
+        <EditClientModal
+          client={editingLoan.client}
+          loan={editingLoan.loan}
+          onSave={updateClient}
+          onClose={() => setEditingLoan(null)}
         />
       )}
     </>

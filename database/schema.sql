@@ -1,5 +1,5 @@
 -- ============================================================
--- COBRANZAS PRO — Esquema de Base de Datos
+-- COBRNZAS PRO — Esquema de Base de Datos
 -- Compatible con PostgreSQL / Supabase
 -- ============================================================
 
