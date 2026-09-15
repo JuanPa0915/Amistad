@@ -16,13 +16,12 @@ export default function PaymentTimeline({
 }: PaymentTimelineProps) {
 
   /** Abre la URL de WhatsApp en una nueva pestaña. */
-  function handleWhatsApp(payment: Payment) {
+  function handleWhatsApp() {
     if (!client?.phone) return;
     const url = buildWhatsAppReceiptUrl({
       clientName: client.name,
       clientPhone: client.phone,
       loan,
-      currentPayment: payment,
       allPayments: payments,
     });
     window.open(url, '_blank', 'noopener,noreferrer');
@@ -106,7 +105,7 @@ export default function PaymentTimeline({
                       {/* Botón de WhatsApp */}
                       {client?.phone && (
                         <button
-                          onClick={() => handleWhatsApp(payment)}
+                          onClick={handleWhatsApp}
                           className="flex items-center justify-center w-8 h-8 rounded-lg
                                      bg-green-50 hover:bg-green-100 text-green-600
                                      transition-colors group"

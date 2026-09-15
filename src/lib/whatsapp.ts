@@ -1,5 +1,5 @@
 import type { Loan, Payment } from '../types/loan.types';
-import { formatCOP, formatDate } from './loanCalculations';
+import { formatCOP } from './loanCalculations';
 
 /* ─── Tipos ───────────────────────────────────────────────────────────────── */
 
@@ -7,9 +7,7 @@ export interface WhatsAppReceiptData {
   clientName: string;
   clientPhone: string;
   loan: Loan;
-  /** El pago específico para el cual se genera el comprobante. */
-  currentPayment: Payment;
-  /** Todos los pagos del préstamo (incluido el actual), ordenados por fecha ascendente. */
+  /** Todos los pagos del préstamo, ordenados por fecha ascendente. */
   allPayments: Payment[];
 }
 
@@ -74,93 +72,108 @@ export function sanitizePhone(raw: string): string {
   return cleaned;
 }
 
+/* ─── Generador de URL de WhatsApp ────────────────────────────────────────── */
+
 /**
- * Calcula los saldos pendientes DESPUÉS de aplicar todos los pagos
- * hasta (e incluyendo) el pago indicado, usando la lógica de cascada:
- *   1° → Los abonos cubren primero el interés pendiente.
- *   2° → El excedente descuenta el capital.
+ * Calcula los saldos finales aplicando TODOS los pagos del préstamo.
+ * A diferencia de calculateBalancesAtPayment, no se detiene en un pago específico.
  */
-function calculateBalancesAtPayment(
+function calculateFinalBalances(
   loan: Loan,
   allPayments: Payment[],
-  upToPaymentId: string,
 ): { interestPending: number; capitalPending: number; totalDebt: number } {
   const totalInterest = loan.capital * (loan.interest_rate / 100) * loan.months;
   let interestPending = totalInterest;
   let capitalPending = loan.capital;
 
-  // Ordenar todos los pagos por fecha ascendente para aplicar la cascada en orden
-  const sorted = [...allPayments].sort(
-    (a, b) => new Date(a.payment_date).getTime() - new Date(b.payment_date).getTime(),
-  );
+  const sorted = [...allPayments]
+    .filter((p) => p.loan_id === loan.id)
+    .sort((a, b) => new Date(a.payment_date).getTime() - new Date(b.payment_date).getTime());
 
   for (const pmt of sorted) {
     let remaining = pmt.amount;
 
-    // Paso 1: cubrir interés primero
     if (interestPending > 0) {
       const toInterest = Math.min(remaining, interestPending);
       interestPending -= toInterest;
       remaining -= toInterest;
     }
 
-    // Paso 2: con el excedente, descontar capital
     if (remaining > 0 && capitalPending > 0) {
       const toCapital = Math.min(remaining, capitalPending);
       capitalPending -= toCapital;
     }
-
-    // Si ya procesamos el pago actual, detenernos
-    if (pmt.id === upToPaymentId) break;
   }
 
-  interestPending = Math.max(0, interestPending);
-  capitalPending = Math.max(0, capitalPending);
-
   return {
-    interestPending,
-    capitalPending,
-    totalDebt: interestPending + capitalPending,
+    interestPending: Math.max(0, interestPending),
+    capitalPending: Math.max(0, capitalPending),
+    totalDebt: Math.max(0, interestPending + capitalPending),
   };
 }
 
-/* ─── Generador de URL de WhatsApp ────────────────────────────────────────── */
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  return hour < 12 ? 'BUENOS DIAS' : 'BUENAS TARDES';
+}
+
+function addMonths(date: Date, months: number): Date {
+  const result = new Date(date);
+  result.setMonth(result.getMonth() + months);
+  return result;
+}
+
+function daysBetween(a: Date, b: Date): number {
+  const msPerDay = 24 * 60 * 60 * 1000;
+  return Math.ceil((b.getTime() - a.getTime()) / msPerDay);
+}
 
 /**
  * Genera la URL completa de la API de WhatsApp (`https://wa.me/...`)
  * con el comprobante de abono pre-rellenado y codificado.
  */
 export function buildWhatsAppReceiptUrl(data: WhatsAppReceiptData): string {
-  const { clientName, clientPhone, loan, currentPayment, allPayments } = data;
+  const { clientName, clientPhone, loan, allPayments } = data;
 
   const phone = sanitizePhone(clientPhone);
-  const totalInterest = loan.capital * (loan.interest_rate / 100) * loan.months;
 
-  // Calcular saldos después de aplicar pagos hasta el pago actual (cascada)
-  const balances = calculateBalancesAtPayment(loan, allPayments, currentPayment.id);
+  // Cálculos financieros
+  const totalInterest = loan.capital * (loan.interest_rate / 100) * loan.months;
+  const valorTotalInicial = loan.capital + totalInterest;
+
+  // Suma de todos los abonos (incluido el actual)
+  const totalAbonos = allPayments
+    .filter((p) => p.loan_id === loan.id)
+    .reduce((sum, p) => sum + p.amount, 0);
+
+  // Saldo actual: aplicar TODOS los pagos del préstamo
+  const balances = calculateFinalBalances(loan, allPayments);
+
+  // Fechas
+  const fechaInicio = new Date(loan.loan_date);
+  const fechaTermina = addMonths(fechaInicio, 2);
+  const hoy = new Date();
+  const diasFaltantes = daysBetween(hoy, fechaTermina);
+
+  const opcionesFecha: Intl.DateTimeFormatOptions = { day: '2-digit', month: '2-digit', year: 'numeric' };
+  const fechaInicioStr = fechaInicio.toLocaleDateString('es-CO', opcionesFecha);
+  const fechaTerminaStr = fechaTermina.toLocaleDateString('es-CO', opcionesFecha);
 
   const message = [
-    `🧾 *COMPROBANTE DE ABONO - LA AMISTAD* 🧾`,
+    `${getGreeting()}`,
+    `*${clientName.toUpperCase()}*`,
     ``,
-    `👤 *Cliente:* ${clientName}`,
+    `⏱ *Plazo:* 2 MESES`,
+    `📅 *INICIO PRESTAMO:* ${fechaInicioStr} | *VALOR:* ${formatCOP(valorTotalInicial)}`,
+    `🏁 *TERMINA PRESTAMO:* ${fechaTerminaStr} | *ABONOS:* ${formatCOP(totalAbonos)} | *SALDO:* ${formatCOP(balances.totalDebt)}`,
     ``,
-    `💵 *Resumen del Préstamo Original:*`,
-    `• Capital Prestado: ${formatCOP(loan.capital)}`,
-    `• Intereses Totales: ${formatCOP(totalInterest)}`,
+    `⏳ *FALTAN (${diasFaltantes}) DIAS PARA TERMINAR EL CREDITO*`,
     ``,
-    `---`,
-    `✨ *DETALLE DEL ABONO ACTUAL* ✨`,
-    `📅 *Fecha:* ${formatDate(currentPayment.payment_date)}`,
-    `💰 *Valor del Abono:* ${formatCOP(currentPayment.amount)}`,
-    `---`,
+    `⚠️ CUMPLIDA LA FECHA DE VENCIMIENTO SE DARA INICIO A UNO NUEVO CON SUS INTERESES AL NUEVO SALDO.`,
+    `🚫 SIN CANCELAR UN CREDITO NO SE HACE UNO NUEVO.`,
     ``,
-    `📊 *ESTADO ACTUALIZADO DE SU DEUDA:*`,
-    `📉 Saldo Intereses Pendiente: ${formatCOP(balances.interestPending)}`,
-    `📉 Saldo Capital Pendiente: ${formatCOP(balances.capitalPending)}`,
-    ``,
-    `🔥 *DEUDA TOTAL RESTANTE:* ${formatCOP(balances.totalDebt)}`,
-    ``,
-    `¡Muchas gracias por su pago!`,
+    `✅ *POR FAVOR CONFIRMAR.*`,
+    `SI NO CONFIRMA SE DA POR ACEPTADA LA INFORMACION.`,
   ].join('\n');
 
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
